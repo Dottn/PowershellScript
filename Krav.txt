@@ -1,0 +1,35 @@
+3 avdelinger
+    Admin 5
+    Prod 30 (hypping utveksling)
+    Salg 3
+
+Alle ansatte skal ha
+    Eget hjemmeområde
+    fellesområde
+        bedrift/avdelinger
+
+Automatisere brukeradministrasjon
+
+
+Automatisere Datamaskinadministrasjon
+
+
+Server med AD, filtjener, printserver, lagring, evt. andre
+O365 dekker Epost, skype for business og OneDrive
+
+
+Skript til 
+    AD Admin
+    Brukerinnlegging
+    daglig drift
+    hente info fra Server
+    opprette og fjerne brukere
+    hente data fra loggfiler
+    diskforbruk
+    restarte printserver
+
+    Lesbare Skript
+
+    Brukermanual for systemansvarlig
+
+    ikke se på nettverket
