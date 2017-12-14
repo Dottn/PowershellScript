@@ -1,6 +1,6 @@
 ﻿**********************
 Windows PowerShell transcript start
-Start time: 20171214173335
+Start time: 20171214175033
 Username: SOLEM\Administrator
 RunAs User: SOLEM\Administrator
 Machine: SOLEM-AD (Microsoft Windows NT 10.0.14393.0)
@@ -16,25 +16,110 @@ PSRemotingProtocolVersion: 2.3
 SerializationVersion: 1.1.0.1
 **********************
 Transcript started, output file is .\ComputerInformation.txt
-System Information for:  SOLEM-AD
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:13 char:23
++ ... mputerSystem = Get-WmiObject Win32_ComputerSystem -Computer $Computer
++                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:13 char:23
++ ... mputerSystem = Get-WmiObject Win32_ComputerSystem -Computer $Computer
++                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:14 char:21
++     $computerBIOS = Get-WmiObject Win32_BIOS -Computer $Computer
++                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:14 char:21
++     $computerBIOS = Get-WmiObject Win32_BIOS -Computer $Computer
++                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:15 char:19
++ ... $computerOS = Get-WmiObject Win32_OperatingSystem -Computer $Computer
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:15 char:19
++ ... $computerOS = Get-WmiObject Win32_OperatingSystem -Computer $Computer
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:16 char:20
++     $computerCPU = Get-WmiObject Win32_Processor -Computer $Computer
++                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:16 char:20
++     $computerCPU = Get-WmiObject Win32_Processor -Computer $Computer
++                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:17 char:20
++ ... mputerHDD = Get-WmiObject Win32_LogicalDisk -ComputerName $Computer - ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+Get-WmiObject : The RPC server is unavailable. (Exception from HRESULT: 0x800706BA)
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:17 char:20
++ ... mputerHDD = Get-WmiObject Win32_LogicalDisk -ComputerName $Computer - ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Get-WmiObject], COMException
+    + FullyQualifiedErrorId : GetWMICOMException,Microsoft.PowerShell.Commands.GetWmiObjectCommand
+
+System Information for:
 -------------------------------------------------------
-Manufacturer: Gigabyte Technology Co., Ltd.
-Model: H67MA-USB3-B3
+Manufacturer:
+Model:
 Serial Number:
-CPU: Intel(R) Core(TM) i7-2600K CPU @ 3.40GHz
-HDD C:
-HDD Capacity: 2 047,51GB
-HDD Space: 99,08 % Free (2 028,62GB)
-HDD E:
-HDD Capacity: 3 725,90GB
-HDD Space: 99,61 % Free (3 711,30GB)
-RAM: 31,98GB
-Operating System: Microsoft Windows Server 2016 Datacenter, Service Pack: 0
+CPU:
+HDD Capacity: 0,00GB
+Attempted to divide by zero.
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:41 char:9
++         "HDD Space: " + "{0:P2}" -f ($computerHDD.FreeSpace / $comput ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], RuntimeException
+    + FullyQualifiedErrorId : RuntimeException
+Attempted to divide by zero.
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:41 char:9
++         "HDD Space: " + "{0:P2}" -f ($computerHDD.FreeSpace / $comput ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], RuntimeException
+    + FullyQualifiedErrorId : RuntimeException
+
+RAM: 0,00GB
+Operating System: , Service Pack:
 User logged In:
-Last Reboot: 12/14/2017 16:47:46
+You cannot call a method on a null-valued expression.
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:46 char:5
++     "Last Reboot: " + $computerOS.ConvertToDateTime($computerOS.LastB ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [], RuntimeException
+    + FullyQualifiedErrorId : InvokeMethodOnNull
+You cannot call a method on a null-valued expression.
+At C:\Users\Administrator\PowershellScript\Get-RemoteSystemInformation.ps1:46 char:5
++     "Last Reboot: " + $computerOS.ConvertToDateTime($computerOS.LastB ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [], RuntimeException
+    + FullyQualifiedErrorId : InvokeMethodOnNull
+
 
 -------------------------------------------------------
 **********************
 Windows PowerShell transcript end
-End time: 20171214173338
+End time: 20171214175051
 **********************

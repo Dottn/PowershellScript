@@ -33,3 +33,10 @@ Skript til
     Brukermanual for systemansvarlig
 
     ikke se på nettverket
+
+
+CSV må ha parametrene
+    Fornavn
+    Etternavn
+    Avdeling
+    Engangspassord

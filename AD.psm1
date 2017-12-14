@@ -138,17 +138,19 @@ function New-CustomADBruker {
                 -Company using:$Bedrift `
                 -HomeDirectory using:$Hjemmemappe `
                 -HomeDrive using:$HjemmemappeDrev
-        } -ErrorAction Stop
+        } -ErrorAction Stop -ErrorVariable err
         Write-Host ("Brukeren {0} ble opprettet for {1}." -f $Brukernavn, $FulltNavn) -ForegroundColor Green
 
         If ( -not $IkkeLeggIGruppe) {
-            Add-ADGroupMember $Avdeling $UPN
+            Invoke-Command -Session $Session -ScriptBlock {
+                Add-ADGroupMember $Avdeling $UPN
+            } -ErrorAction Stop -ErrorVariable err
             Write-Host ("Brukeren {0} ble medlem av gruppen {1}." -f $Brukernavn, $Avdeling) -ForegroundColor Green
         }
     }
     catch {
         Write-Host ("Opprettelse av bruker {0} for {1} feilet. Se feilmelding under." -f $Brukernavn, $FulltNavn) -ForegroundColor Yellow
-        Write-Host $_.Exeption.Message
+        Write-Host $err.Exeption.Message
     }
 }
 
@@ -265,7 +267,7 @@ Function New-Brukernavn {
     while ($err.Count -eq 0) {
         $Brukernavn = "{0}{1}" -f $GrunnBrukernavn, ($i++)
         Invoke-Command -Session $Session -ScriptBlock {
-            Get-ADUser -Identity $Brukernavn
+            Get-ADUser -Identity using:$Brukernavn
         } -ErrorVariable err -ErrorAction SilentlyContinue
     }
     return $Brukernavn
@@ -322,7 +324,7 @@ function New-UPN {
     $UPN = $GrunnUPN
     #Kontrollerer om UPN er i bruk
     Invoke-Command -Session $Session -ScriptBlock {
-        Get-ADUser -Filter {UserPrincipalName -like $GrunnUPN} -ErrorVariable err
+        Get-ADUser -Filter {UserPrincipalName -like using:$GrunnUPN} -ErrorVariable err
     } -ErrorVariable err -ErrorAction SilentlyContinue
     $i = 1
     #Dersom UPN er i bruk, vil $err.Count være lik 0. Legger til $i, som er monotonisk voksende,
@@ -330,7 +332,7 @@ function New-UPN {
     while ($err.Count -eq 0) {
         $UPN = "{0}{1}" -f $GrunnUPN, ($i++)
         $Domene = Invoke-Command -Session $Session -ScriptBlock {
-            Get-ADUser  -Filter {UserPrincipalName -like $UPN}
+            Get-ADUser  -Filter {UserPrincipalName -like using:$UPN}
         } -ErrorVariable err
     }
     return $UPN
@@ -356,6 +358,28 @@ function Format-NorwegianChars {
 
 }
 
-Function test-session {
-    $Session
+Function Remove-CustomADUser {
+    Param(
+        [Parameter(
+            Mandatory = $true,
+            Position = 0
+        )]
+        [string]
+        $Identity
+    )
+    $User = Invoke-Command -Session $Session -ScriptBlock {
+        Get-ADUser -Identity using:$Identity -Properties HomeDirectory
+    } -ErrorVariable err -ErrorAction SilentlyContinue
+
+    if ($err.Count -gt 0) {
+        Write-Warning "Bruker ikke funnet"
+        return
+    }
+
+    Invoke-Command -Session $Session -ScriptBlock {
+        Remove-ADUser $Identity
+    } -ErrorVariable err -ErrorAction SilentlyContinue
+    if ($user.HomeDirectory.Count -gt 0) {
+        Remove-Item $user.HomeDirectory -Recurse -Force
+    }
 }
