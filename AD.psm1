@@ -50,6 +50,10 @@ Standard 'Z'.
 Nettverksaddressen til mappen hjemmemappen skal opprettes i.
 Brukerens hjemmemappe vil ligge i denne mappen, og ha navn tilsvarende brukerens SAMAccountName.
 
+.PARAMETER IkkeLeggIGruppe
+
+Dersom brukeren ikke skal legges til standardgruppen for avdelingen, benytt denne.
+
 .EXAMPLE
 
 \\TODO
@@ -101,7 +105,9 @@ function New-CustomADBruker {
             HelpMessage = "Adresse til hvor brukerens hjemmemappe skal opprettes. Standard C:\Share\Hjemmemappper."
         )]
         [string]
-        $HjemmemappeRot = "C:\Share\Hjemmemappper"
+        $HjemmemappeRot = "\\Solem-ad\Share\Hjemmemapper",
+        [switch]
+        $IkkeLeggIGruppe
     )
     $Brukernavn = New-Brukernavn $Fornavn $Etternavn
     $FulltNavn = "{0} {1}" -f $Fornavn, $Etternavn
@@ -112,24 +118,88 @@ function New-CustomADBruker {
     $Hjemmemappe = "{0}{1}" -f $HjemmemappeRot, $Brukernavn
 
     $Domene = Invoke-Command -Session $Session -ScriptBlock {
-        "@{0}" -f (Get-ADDomain)
+        Get-ADDomain
     } -ErrorVariable err
-    $AvdelingOUPath = "OU={0},OU={1},{2}" -f $Avdeling, $Bedrift, $Domene.DistinguishedName
+    $AvdelingOUPath = "OU={0},OU={1},{2}" -f $Avdeling, $Bedrift, ($Domene.DistinguishedName)
+    try {
+        Invoke-Command -Session $Session -ScriptBlock {
+            New-ADUser `
+                -Name using:$FulltNavn `
+                -DisplayName using:$FulltNavn `
+                -GivenName using:$Fornavn `
+                -Surname using:$Etternavn `
+                -UserPrincipalName using:$UPN `
+                -SamAccountName using:$Brukernavn `
+                -AccountPassword using:$Engangspassord `
+                -Enabled using:$true `
+                -ChangePasswordAtLogon using:$true `
+                -Path using:$AvdelingOUPath `
+                -Department using:$Avdeling `
+                -Company using:$Bedrift `
+                -HomeDirectory using:$Hjemmemappe `
+                -HomeDrive using:$HjemmemappeDrev
+        } -ErrorAction Stop
+        Write-Host ("Brukeren {0} ble opprettet for {1}." -f $Brukernavn, $FulltNavn) -ForegroundColor Green
 
-    New-ADUser `
-        -DisplayName $FulltNavn `
-        -GivenName $Fornavn `
-        -Surname $Etternavn `
-        -UserPrincipalName $UPN `
-        -SamAccountName $Brukernavn `
-        -AccountPassword $Engangspassord `
-        -Enabled $true `
-        -ChangePasswordAtLogon $true `
-        -Path $AvdelingOUPath `
-        -Department $Avdeling `
-        -Company $Bedrift `
-        -HomeDirectory $Hjemmemappe `
-        -HomeDrive $HjemmemappeDrev
+        If ( -not $IkkeLeggIGruppe) {
+            Add-ADGroupMember $Avdeling $UPN
+            Write-Host ("Brukeren {0} ble medlem av gruppen {1}." -f $Brukernavn, $Avdeling) -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host ("Opprettelse av bruker {0} for {1} feilet. Se feilmelding under." -f $Brukernavn, $FulltNavn) -ForegroundColor Yellow
+        Write-Host $_.Exeption.Message
+    }
+}
+
+<#
+.SYNOPSIS
+
+Oppretter flere brukere fra CSV-fil.
+Behøver feltene Fornavn, Etternavn, Avdeling, Engangspassord
+
+.PARAMETER Path
+
+Sti til CSV-fil. Dersom ikke oppgitt, vil en filutforsker dukke opp.
+#>
+function New-CustomADBrukerFromCSV {
+    Param (
+        [Parameter(
+            Position = 0
+        )]
+        [string]
+        # Sti til CSV-Fil
+        $Path = "",
+        [char]
+        # Separasjonstegn i CSV. Standard ';'.
+        $Delimiter = ';'
+    )
+
+    # Dersom brukeren ikke oppgir en sti til en CSV-fil, åpne dialogboks.
+    If ($Path.Length -le 0) {
+        do {
+            $CsvFil = New-Object System.Windows.Forms.OpenFileDialog
+            $CsvFil.Filter = 
+            "csv files (*.csv)|*.csv|txt files (*.txt)|" +
+            "*.txt|All files (*.*)|*.*"
+            $CsvFil.Title = "Åpne opp CSV fil som inneholder brukere"
+            $CsvFil.ShowDialog()
+        } until ($CsvFil.FileName -ne "")
+        $Path = $CsvFil.FileName
+    }
+
+    $Brukere = Import-Csv $CsvFil.FileName -Delimiter ";"
+    
+    foreach ($Bruker in $Brukere) {
+		
+        # Hent verdier fra CSV-fil og opprett bruker
+        $Passord = ConvertTo-SecureString $Bruker.Passord -AsPlainText -Force 
+        $Etternavn = $Bruker.Etternavn.Trim() 
+        $Fornavn = $Bruker.Fornavn.Trim()
+        $Avdeling = $Bruker.Avdeling.Trim()
+        
+        New-CustomADBruker $Fornavn $Etternavn $Avdeling $Passord
+    }
 }
 
 <#
@@ -186,7 +256,9 @@ Function New-Brukernavn {
     $GrunnBrukernavn = "{0}{1}" -f $Fornavn, $Etternavn
     $Brukernavn = $GrunnBrukernavn
     #Kontrollerer om brukernavnet er i bruk
-    Get-ADUser -Identity $GrunnBrukernavn -ErrorVariable err
+    Invoke-Command -Session $Session -ScriptBlock {
+        Get-ADUser -Identity $GrunnBrukernavn
+    } -ErrorVariable err -ErrorAction SilentlyContinue
     $i = 1
     #Dersom brukernavnet er i bruk, vil $err.Count være lik 0. Legger til $i, som er monotonisk voksende,
     #til et ledig brukernavn er funnet
@@ -194,7 +266,7 @@ Function New-Brukernavn {
         $Brukernavn = "{0}{1}" -f $GrunnBrukernavn, ($i++)
         Invoke-Command -Session $Session -ScriptBlock {
             Get-ADUser -Identity $Brukernavn
-        } -ErrorVariable err
+        } -ErrorVariable err -ErrorAction SilentlyContinue
     }
     return $Brukernavn
 }
@@ -239,19 +311,19 @@ function New-UPN {
         #Brukerens fulle etternavn.
         $Etternavn = (Read-Host "Etternavn")
     )
-    $Fornavn = Format-NorwegianChars $Fornavn.Trim().Replace(' ', '.')
-    $Etternavn = Format-NorwegianChars $Etternavn.Trim().Replace(' ', '.')
+    $Fornavn = Format-NorwegianChars ($Fornavn.Trim().Replace(' ', '.'))
+    $Etternavn = Format-NorwegianChars ($Etternavn.Trim().Replace(' ', '.'))
     $Bruker = "{0}.{1}" -f $Fornavn, $Etternavn
     $Domene = Invoke-Command -Session $Session -ScriptBlock {
         "@{0}" -f (Get-ADDomain).Forest
-    } -ErrorVariable err
+    } -ErrorVariable err -ErrorAction SilentlyContinue
         
     $GrunnUPN = "{0}{1}" -f $Bruker, $Domene
     $UPN = $GrunnUPN
     #Kontrollerer om UPN er i bruk
     Invoke-Command -Session $Session -ScriptBlock {
         Get-ADUser -Filter {UserPrincipalName -like $GrunnUPN} -ErrorVariable err
-    } -ErrorVariable err
+    } -ErrorVariable err -ErrorAction SilentlyContinue
     $i = 1
     #Dersom UPN er i bruk, vil $err.Count være lik 0. Legger til $i, som er monotonisk voksende,
     #til en ledig UPN er funnet
@@ -269,7 +341,7 @@ function New-UPN {
 
 Bytter ut tegnene ÆØÅæøå med EOAeoa.
 #>
-function Private:Format-NorwegianChars {
+function Format-NorwegianChars {
     Param (
         [Parameter(
             Mandatory = $true,
@@ -279,8 +351,7 @@ function Private:Format-NorwegianChars {
         #Streng som skal normaliseres.
         $OriginalString
     )
-    $OriginalString.ToLower()
-    $FormatertString = $OrigialString.Replace('Æ', 'E').Replace('æ', 'e').Replace('Ø', 'O').Replace('ø', 'o').Replace('Å', 'A').Replace('å', 'a')
+    $FormatertString = $OriginalString.Replace('Æ', 'E').Replace('æ', 'e').Replace('Ø', 'O').Replace('ø', 'o').Replace('Å', 'A').Replace('å', 'a')
     return $FormatertString
 
 }

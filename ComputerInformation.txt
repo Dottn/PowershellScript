@@ -1,0 +1,40 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20171214173335
+Username: SOLEM\Administrator
+RunAs User: SOLEM\Administrator
+Machine: SOLEM-AD (Microsoft Windows NT 10.0.14393.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command & 'C:\Users\Administrator\.vscode\extensions\ms-vscode.powershell-1.5.1\scripts\Start-EditorServices.ps1' -EditorServicesVersion '1.5.1' -HostName 'Visual Studio Code Host' -HostProfileId 'Microsoft.VSCode' -HostVersion '1.5.1' -AdditionalModules @('PowerShellEditorServices.VSCode') -BundledModulesPath 'C:\Users\Administrator\.vscode\extensions\ms-vscode.powershell-1.5.1\modules' -EnableConsoleRepl -LogLevel 'Normal' -LogPath 'C:\Users\Administrator\.vscode\extensions\ms-vscode.powershell-1.5.1\logs\1513268506-d086db26-eef4-40f4-ac33-9377c61a6ed91513268496001\EditorServices.log' -SessionDetailsPath 'C:\Users\Administrator\.vscode\extensions\ms-vscode.powershell-1.5.1\sessions\PSES-VSCode-4716-858453' -FeatureFlags @()
+Process ID: 6884
+PSVersion: 5.1.14393.206
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.14393.206
+BuildVersion: 10.0.14393.206
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is .\ComputerInformation.txt
+System Information for:  SOLEM-AD
+-------------------------------------------------------
+Manufacturer: Gigabyte Technology Co., Ltd.
+Model: H67MA-USB3-B3
+Serial Number:
+CPU: Intel(R) Core(TM) i7-2600K CPU @ 3.40GHz
+HDD C:
+HDD Capacity: 2 047,51GB
+HDD Space: 99,08 % Free (2 028,62GB)
+HDD E:
+HDD Capacity: 3 725,90GB
+HDD Space: 99,61 % Free (3 711,30GB)
+RAM: 31,98GB
+Operating System: Microsoft Windows Server 2016 Datacenter, Service Pack: 0
+User logged In:
+Last Reboot: 12/14/2017 16:47:46
+
+-------------------------------------------------------
+**********************
+Windows PowerShell transcript end
+End time: 20171214173338
+**********************
