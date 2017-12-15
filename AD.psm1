@@ -121,7 +121,7 @@ function New-CustomADBruker {
             HelpMessage = "Adresse til hvor brukerens hjemmemappe skal opprettes. Standard C:\Share\Hjemmemappper."
         )]
         [string]
-        $HjemmemappeRot = "\\Solem-ad\Share\Hjemmemapper",
+        $HjemmemappeRot = "\\psp-ex30\Share\Hjemmemapper",
         [switch]
         $IkkeLeggIGruppe
     )
@@ -154,8 +154,8 @@ function New-CustomADBruker {
                 -Company $using:Bedrift `
                 -HomeDirectory $using:Hjemmemappe `
                 -HomeDrive $using:HjemmemappeDrev `
-                -ErrorAction Stop |
-                Set-ADObject -ProtectedFromAccidentalDeletion
+                -ErrorAction Stop 
+
         } -AsJob
         $null = Wait-Job $NewUserJob
         Receive-Job $NewUserJob -ErrorAction SilentlyContinue -ErrorVariable err
@@ -422,40 +422,31 @@ Function Remove-CustomADUser {
         $User = Invoke-Command -Session $Session -ScriptBlock {
             Get-ADUser -Identity $using:Identity -Properties HomeDirectory
         } -ErrorAction SilentlyContinue -ErrorVariable err
-    }
+    } 
     catch {
         Write-Host ("Bruker {0} ikke funnet." -f $Identity) -ForegroundColor Yellow
         return
     }
     
-    Write-Host ("Er du sikker du vil slette brukeren {0}?" -f $User.Name)
-    If (-not (Read-Host "y/N" -like "y")) {
-        Write-Host "Avbryter. Ingen endringer utført." -ForegroundColor Cyan
-        return
-    }
     try {
-        $err = Invoke-Command -Session $Session -ScriptBlock {
-            Remove-ADUser $Identity -ErrorVariable err 
-            return $err
-        }
-        if ($err.Count -gt 0) {
-            throw ""
+        Invoke-Command -Session $Session -ScriptBlock {
+            Remove-ADUser $using:Identity
         }
     }
     catch {
         Write-Warning ("Kunne ikke slette brukeren {0}." -f $Identity)
     }
 
-    Write-Host ("Bruker {0} slettet.") -ForegroundColor Green
+    Write-Host ("Bruker {0} slettet." -f $Identity) -ForegroundColor Green
 
     if ($user.HomeDirectory.Count -gt 0) {
         Write-Host ("Brukerens hjemmemappe ble funnet på denne lokasjonen: {0}?" -f $User.HomeDirectory)
-        If (-not (Read-Host "Slette y/N ?" -like "y")) {
+        If (-not (Read-Host "Slette y/N ?") -like "y") {
             Write-Host "Hjemmemappen ikke slettet" -ForegroundColor Cyan
             return
         }
         try {
-            Remove-Item $user.HomeDirectory -Recurse -Force
+            Remove-Item $user.HomeDirectory -Recurse -Force -ErrorAction Stop
         }
         catch {
             Write-Warning "Noe gikk galt. Hjemmemappen ikke slettet" 
@@ -484,12 +475,28 @@ function Move-CustomADBruker {
     )
     # Finner ut om brukeren eksisterer.
     try {
-        $User = Invoke-Command -Session $Session -ScriptBlock {
-            Get-ADUser -Identity $using:Identity 
+        $user = Invoke-Command -Session $Session -ScriptBlock {
+            Get-ADUser -Identity $using:Identity -Properties Department
         }
     }
     catch {
         Write-Host ("Bruker {0} ikke funnet." -f $Identity) -ForegroundColor Yellow
         return
     }
+    $Domene = Invoke-Command -Session $Session -ScriptBlock {
+        Get-ADDomain
+    }
+    $Target = "OU={0},OU={1},{2}" -f $Avdeling, $Bedrift, ($Domene.DistinguishedName)
+    Try {
+        Invoke-Command -Session $Session -ScriptBlock {
+            Move-ADObject -Identity (($using:user).DistinguishedName) -TargetPath $using:Target -ErrorAction Stop
+            Remove-ADGroupMember -Identity (($using:user).Department) -Members $using:Identity -ErrorAction Stop
+            Set-ADUser $using:Identity -Department $using:Avdeling -ErrorAction Stop
+            Add-ADGroupMember -Identity $using:Avdeling -Members $using:Identity -ErrorAction Stop
+        }
+    }
+    catch {
+        Write-Host "Kunne ikke flytte brukeren."
+    }
+    Write-Host ("Bruker {0} flyttet til avdeling {1}, og fjernet fra gruppen {2}." -f $Identity, $Avdeling, ($user.Department))
 }
