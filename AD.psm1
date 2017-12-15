@@ -1,6 +1,6 @@
-$Bedrift = "PSEksamenBedrift"
+$Bedrift = "StAn"
 
-$DomainController = Read-Host "Domenekontrollers adresse"
+$DomainController = Read-Host "Domenekontrollers adresse. '.' er lokal maskin."
 $Credential = Get-Credential -Message "Logg inn med brukeradministrasjonsrettigheter"
 
 $Session = New-PSSession $DomainController -Credential $Credential
@@ -29,16 +29,17 @@ Brukerens fulle etternavn.
 Brukes til å generere SAMAccountName og UPN.
 2-64 tegn.
 
-.PARAMETER Avdeling
-
-Avdelingen brukeren tilhører.
-Dette gir hvilken OU Brukeren opprettes i.
-2-64 tegn.
-
 .PARAMETER Engangspassord
 
 Ett engangspassord for brukeren.
 Dette må endres av brukeren etter første innlogging.
+
+.PARAMETER Avdeling
+
+Avdelingen brukeren tilhører.
+Dette gir hvilken OU Brukeren opprettes i.
+Aksepterte verdier må endres i skriptet.
+Dersom ikke oppgitt, blir brukeren lagt i avdelingen Produksjon.
 
 .PARAMETER HjemmemappeDrev
 
@@ -83,24 +84,23 @@ function New-CustomADBruker {
         [Parameter(
             Mandatory = $true,
             Position = 2,
-            HelpMessage = "Avdelingen brukeren tilhører. 2-64 tegn."
-        )]
-        [ValidateLength(2, 64)]                    
-        [string]
-        $Avdeling = (Read-Host "Avdeling"),
-        [Parameter(
-            Mandatory = $true,
-            Position = 3,
             HelpMessage = "Engangspassord for brukeren. Dette endres av brukeren etter første innlogging."
         )]
         [securestring]
         $Engangspassord = (Read-Host "Engangspassord" -AsSecureString),
         [Parameter(
+            Position = 3
+        )]
+        [ValidateSet("Administrasjon", "Produksjon", "Salg", "Utvikling")]                    
+        [string]
+        $Avdeling = "Produksjon",
+        [Parameter(
             Position = 4,
             HelpMessage = "Drevet brukerens hjemmemappe skal settes til. Standard 'Z'."
         )]
         [string]
-        $HjemmemappeDrev = "Z", [Parameter(
+        $HjemmemappeDrev = "Z", 
+        [Parameter(
             Position = 5,
             HelpMessage = "Adresse til hvor brukerens hjemmemappe skal opprettes. Standard C:\Share\Hjemmemappper."
         )]
@@ -122,7 +122,7 @@ function New-CustomADBruker {
     } -ErrorVariable err
     $AvdelingOUPath = "OU={0},OU={1},{2}" -f $Avdeling, $Bedrift, ($Domene.DistinguishedName)
     try {
-        Invoke-Command -Session $Session -ScriptBlock {
+        $err = Invoke-Command -Session $Session -ScriptBlock {
             New-ADUser `
                 -Name using:$FulltNavn `
                 -DisplayName using:$FulltNavn `
@@ -137,14 +137,25 @@ function New-CustomADBruker {
                 -Department using:$Avdeling `
                 -Company using:$Bedrift `
                 -HomeDirectory using:$Hjemmemappe `
-                -HomeDrive using:$HjemmemappeDrev
-        } -ErrorAction Stop -ErrorVariable err
+                -HomeDrive using:$HjemmemappeDrev `
+                -ErrorVariable err
+            return $err
+        }
+        # Kaster en tom feilmelding for å entre catch-blokka. Innholdet i selve feilmeldingen blir ikke utnyttet.
+        if ($err.Count -gt 0) {
+            Throw "" 
+        }
         Write-Host ("Brukeren {0} ble opprettet for {1}." -f $Brukernavn, $FulltNavn) -ForegroundColor Green
 
         If ( -not $IkkeLeggIGruppe) {
-            Invoke-Command -Session $Session -ScriptBlock {
-                Add-ADGroupMember $Avdeling $UPN
-            } -ErrorAction Stop -ErrorVariable err
+            $err = Invoke-Command -Session $Session -ScriptBlock {
+                Add-ADGroupMember $Avdeling $UPN -ErrorVariable err
+                return $err
+            }
+            # Kaster en tom feilmelding for å entre catch-blokka. Innholdet i selve feilmeldingen blir ikke utnyttet.
+            if ($err.Count -gt 0) {
+                Throw "" 
+            }
             Write-Host ("Brukeren {0} ble medlem av gruppen {1}." -f $Brukernavn, $Avdeling) -ForegroundColor Green
         }
     }
