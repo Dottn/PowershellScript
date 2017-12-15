@@ -1,9 +1,25 @@
-$Bedrift = "StAn"
+﻿# Setter opp for domeneadministrasjon
+try {
+    $Bedrift = "StAn"
 
-$DomainController = Read-Host "Domenekontrollers adresse. '.' er lokal maskin."
-$Credential = Get-Credential -Message "Logg inn med brukeradministrasjonsrettigheter"
+    # Forsøk å finne domenekontroller automatisk, hvis ikke, spør om domenekontrollers adresse.
+    try {
+        $DomainController = (Get-ADDomainController).HostName
+        $credMessage = "Logg inn med brukeradministrasjonsrettigheter på domenet {0}. Disse vil bli benyttet av kommandoene." -f $((Get-ADDomain).Forest)
+    }
+    catch {
+        Write-Warning "Fant ikke domenekontroller. Venligst oppgi adresse."
+        $DomainController = Read-Host "Domenekontrollers adresse."
+        $credMessage = "Logg inn med brukeradministrasjonsrettigheter. Disse vil bli benyttet av kommandoene."
+    }
+    $Credential = Get-Credential -Message $credMessage
 
-$Session = New-PSSession $DomainController -Credential $Credential
+    $Session = New-PSSession $DomainController -Credential $Credential
+}
+catch {
+    Write-Error ("Kunne ikke opprette PSSession mot {0}. Modul ikke lastet inn." -f $DomainController)
+    return
+}
 
 
 <#
@@ -122,46 +138,51 @@ function New-CustomADBruker {
     } -ErrorVariable err
     $AvdelingOUPath = "OU={0},OU={1},{2}" -f $Avdeling, $Bedrift, ($Domene.DistinguishedName)
     try {
-        $err = Invoke-Command -Session $Session -ScriptBlock {
+        $NewUserJob = Invoke-Command -Session $Session -ScriptBlock {
             New-ADUser `
-                -Name using:$FulltNavn `
-                -DisplayName using:$FulltNavn `
-                -GivenName using:$Fornavn `
-                -Surname using:$Etternavn `
-                -UserPrincipalName using:$UPN `
-                -SamAccountName using:$Brukernavn `
-                -AccountPassword using:$Engangspassord `
-                -Enabled using:$true `
-                -ChangePasswordAtLogon using:$true `
-                -Path using:$AvdelingOUPath `
-                -Department using:$Avdeling `
-                -Company using:$Bedrift `
-                -HomeDirectory using:$Hjemmemappe `
-                -HomeDrive using:$HjemmemappeDrev `
-                -ErrorVariable err
-            return $err
-        }
+                -Name $using:FulltNavn `
+                -DisplayName $using:FulltNavn `
+                -GivenName $using:Fornavn `
+                -Surname $using:Etternavn `
+                -UserPrincipalName $using:UPN `
+                -SamAccountName $using:Brukernavn `
+                -AccountPassword $using:Engangspassord `
+                -Enabled $true `
+                -ChangePasswordAtLogon $true `
+                -Path $using:AvdelingOUPath `
+                -Department $using:Avdeling `
+                -Company $using:Bedrift `
+                -HomeDirectory $using:Hjemmemappe `
+                -HomeDrive $using:HjemmemappeDrev `
+                -ErrorAction Stop |
+                Set-ADObject -ProtectedFromAccidentalDeletion
+        } -AsJob
+        $null = Wait-Job $NewUserJob
+        Receive-Job $NewUserJob -ErrorAction SilentlyContinue -ErrorVariable err
         # Kaster en tom feilmelding for å entre catch-blokka. Innholdet i selve feilmeldingen blir ikke utnyttet.
         if ($err.Count -gt 0) {
-            Throw "" 
+            Throw ("Opprettelse av bruker {0} for {1} feilet. Se feilmelding under." -f $Brukernavn, $FulltNavn)
         }
-        Write-Host ("Brukeren {0} ble opprettet for {1}." -f $Brukernavn, $FulltNavn) -ForegroundColor Green
+        else {
+            Write-Host ("Brukeren {0} ble opprettet for {1}." -f $Brukernavn, $FulltNavn) -ForegroundColor Green
+        }
 
         If ( -not $IkkeLeggIGruppe) {
-            $err = Invoke-Command -Session $Session -ScriptBlock {
-                Add-ADGroupMember $Avdeling $UPN -ErrorVariable err
-                return $err
-            }
+            $AddGroupMemberJob = Invoke-Command -Session $Session -ScriptBlock {
+                Add-ADGroupMember -Identity $using:Avdeling -Members $using:Brukernavn -ErrorAction Stop
+            } -AsJob
+            $null = Wait-Job $AddGroupMemberJob
+            Receive-Job $AddGroupMemberJob -ErrorAction SilentlyContinue -ErrorVariable err
             # Kaster en tom feilmelding for å entre catch-blokka. Innholdet i selve feilmeldingen blir ikke utnyttet.
             if ($err.Count -gt 0) {
-                Throw "" 
+                Throw ("Brukeren {0} kunne ikke legges i gruppen {1}" -f $Brukernavn, $Avdeling)
             }
             Write-Host ("Brukeren {0} ble medlem av gruppen {1}." -f $Brukernavn, $Avdeling) -ForegroundColor Green
         }
     }
     catch {
-        Write-Host ("Opprettelse av bruker {0} for {1} feilet. Se feilmelding under." -f $Brukernavn, $FulltNavn) -ForegroundColor Yellow
-        Write-Host $err.Exeption.Message
+        Write-Host ($_) -ForegroundColor Yellow
+        Write-Host $err[0] -ForegroundColor Red
     }
 }
 
@@ -183,6 +204,9 @@ function New-CustomADBrukerFromCSV {
         [string]
         # Sti til CSV-Fil
         $Path = "",
+        [Parameter(
+            Position = 1
+        )]
         [char]
         # Separasjonstegn i CSV. Standard ';'.
         $Delimiter = ';'
@@ -201,7 +225,7 @@ function New-CustomADBrukerFromCSV {
         $Path = $CsvFil.FileName
     }
 
-    $Brukere = Import-Csv $CsvFil.FileName -Delimiter ";"
+    $Brukere = Import-Csv $Path -Delimiter $Delimiter
     
     foreach ($Bruker in $Brukere) {
 		
@@ -210,8 +234,12 @@ function New-CustomADBrukerFromCSV {
         $Etternavn = $Bruker.Etternavn.Trim() 
         $Fornavn = $Bruker.Fornavn.Trim()
         $Avdeling = $Bruker.Avdeling.Trim()
-        
-        New-CustomADBruker $Fornavn $Etternavn $Avdeling $Passord
+
+        New-CustomADBruker `
+            -Fornavn $Fornavn `
+            -Etternavn $Etternavn `
+            -Avdeling $Avdeling `
+            -EngangsPassord $Passord
     }
 }
 
@@ -236,8 +264,6 @@ sivsol
 C:\PS:> New-Brukernavn Asbjørn Da
 asbda
 
-.NOTES
-General notes
 #>
 Function New-Brukernavn {
     Param(
@@ -278,7 +304,7 @@ Function New-Brukernavn {
     while ($err.Count -eq 0) {
         $Brukernavn = "{0}{1}" -f $GrunnBrukernavn, ($i++)
         Invoke-Command -Session $Session -ScriptBlock {
-            Get-ADUser -Identity using:$Brukernavn
+            Get-ADUser -Identity $using:Brukernavn
         } -ErrorVariable err -ErrorAction SilentlyContinue
     }
     return $Brukernavn
@@ -301,9 +327,6 @@ Henter domenenavn fra tilkoblet AD.
 
 An example
 
-.NOTES
-
-General notes
 #>
 function New-UPN {
     Param(
@@ -335,7 +358,7 @@ function New-UPN {
     $UPN = $GrunnUPN
     #Kontrollerer om UPN er i bruk
     Invoke-Command -Session $Session -ScriptBlock {
-        Get-ADUser -Filter {UserPrincipalName -like using:$GrunnUPN} -ErrorVariable err
+        Get-ADUser -Filter {UserPrincipalName -like $using:GrunnUPN} -ErrorVariable err
     } -ErrorVariable err -ErrorAction SilentlyContinue
     $i = 1
     #Dersom UPN er i bruk, vil $err.Count være lik 0. Legger til $i, som er monotonisk voksende,
@@ -343,7 +366,7 @@ function New-UPN {
     while ($err.Count -eq 0) {
         $UPN = "{0}{1}" -f $GrunnUPN, ($i++)
         $Domene = Invoke-Command -Session $Session -ScriptBlock {
-            Get-ADUser  -Filter {UserPrincipalName -like using:$UPN}
+            Get-ADUser  -Filter {UserPrincipalName -like $using:UPN}
         } -ErrorVariable err
     }
     return $UPN
@@ -368,7 +391,23 @@ function Format-NorwegianChars {
     return $FormatertString
 
 }
+<#
+.SYNOPSIS
 
+Fjerner en ADBruker og dens tilhørende hjemmemappe.
+
+.DESCRIPTION
+
+Fjerner AD-brukeren, og dersom brukeren har en hjemmemappe, spør om du også vil slette denne.
+
+.PARAMETER Identity
+
+Bruker som skal slettes 
+
+.EXAMPLE
+//TODO
+
+#>
 Function Remove-CustomADUser {
     Param(
         [Parameter(
@@ -378,19 +417,79 @@ Function Remove-CustomADUser {
         [string]
         $Identity
     )
-    $User = Invoke-Command -Session $Session -ScriptBlock {
-        Get-ADUser -Identity using:$Identity -Properties HomeDirectory
-    } -ErrorVariable err -ErrorAction SilentlyContinue
-
-    if ($err.Count -gt 0) {
-        Write-Warning "Bruker ikke funnet"
+    # Finner ut om brukeren eksisterer.
+    try {
+        $User = Invoke-Command -Session $Session -ScriptBlock {
+            Get-ADUser -Identity $using:Identity -Properties HomeDirectory
+        } -ErrorAction SilentlyContinue -ErrorVariable err
+    }
+    catch {
+        Write-Host ("Bruker {0} ikke funnet." -f $Identity) -ForegroundColor Yellow
         return
     }
+    
+    Write-Host ("Er du sikker du vil slette brukeren {0}?" -f $User.Name)
+    If (-not (Read-Host "y/N" -like "y")) {
+        Write-Host "Avbryter. Ingen endringer utført." -ForegroundColor Cyan
+        return
+    }
+    try {
+        $err = Invoke-Command -Session $Session -ScriptBlock {
+            Remove-ADUser $Identity -ErrorVariable err 
+            return $err
+        }
+        if ($err.Count -gt 0) {
+            throw ""
+        }
+    }
+    catch {
+        Write-Warning ("Kunne ikke slette brukeren {0}." -f $Identity)
+    }
 
-    Invoke-Command -Session $Session -ScriptBlock {
-        Remove-ADUser $Identity
-    } -ErrorVariable err -ErrorAction SilentlyContinue
+    Write-Host ("Bruker {0} slettet.") -ForegroundColor Green
+
     if ($user.HomeDirectory.Count -gt 0) {
-        Remove-Item $user.HomeDirectory -Recurse -Force
+        Write-Host ("Brukerens hjemmemappe ble funnet på denne lokasjonen: {0}?" -f $User.HomeDirectory)
+        If (-not (Read-Host "Slette y/N ?" -like "y")) {
+            Write-Host "Hjemmemappen ikke slettet" -ForegroundColor Cyan
+            return
+        }
+        try {
+            Remove-Item $user.HomeDirectory -Recurse -Force
+        }
+        catch {
+            Write-Warning "Noe gikk galt. Hjemmemappen ikke slettet" 
+            return
+        }
+        Write-Host "Hjemmemappen slettet" -ForegroundColor Green
+    } 
+}
+
+function Move-CustomADBruker {
+    Param(
+        [Parameter(
+            Mandatory = $true,
+            Position = 0
+        )]
+        [string]
+        $Identity,
+        [Parameter(
+            Mandatory = $true,
+            Position = 1,
+            HelpMessage = "En av avdelingene Administrasjon, Produksjon, Salg eller Utvikling"
+        )]
+        [ValidateSet("Administrasjon", "Produksjon", "Salg", "Utvikling")]                    
+        [string]
+        $Avdeling
+    )
+    # Finner ut om brukeren eksisterer.
+    try {
+        $User = Invoke-Command -Session $Session -ScriptBlock {
+            Get-ADUser -Identity $using:Identity 
+        }
+    }
+    catch {
+        Write-Host ("Bruker {0} ikke funnet." -f $Identity) -ForegroundColor Yellow
+        return
     }
 }

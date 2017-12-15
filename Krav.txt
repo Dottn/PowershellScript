@@ -40,4 +40,4 @@ CSV må ha parametrene
     Fornavn
     Etternavn
     Avdeling
-    Engangspassord
+    Passord
